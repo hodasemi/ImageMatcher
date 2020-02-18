@@ -1,8 +1,7 @@
 use utilities::prelude::*;
 
-use float_cmp::approx_eq;
 use image;
-use image::Pixel;
+use image::{ImageBuffer, Pixel, Rgba};
 
 use std::env;
 
@@ -43,31 +42,23 @@ fn main() -> VerboseResult<()> {
     let total_pixel_count = width * height;
     let mut matching_pixel_count = 0;
 
-    for (first_image_pixel, second_image_pixel) in first_image.pixels().zip(second_image.pixels()) {
-        let (first_r, first_g, first_b, first_a) = first_image_pixel.channels4();
-        let (second_r, second_g, second_b, second_a) = second_image_pixel.channels4();
+    let mut difference_texture = ImageBuffer::from_pixel(width, height, Rgba([0, 0, 0, 0]));
 
-        if approx_eq!(
-            f32,
-            rgba_u8_to_f32(first_r),
-            rgba_u8_to_f32(second_r),
-            ulps = 2
-        ) && approx_eq!(
-            f32,
-            rgba_u8_to_f32(first_g),
-            rgba_u8_to_f32(second_g),
-            ulps = 2
-        ) && approx_eq!(
-            f32,
-            rgba_u8_to_f32(first_b),
-            rgba_u8_to_f32(second_b),
-            ulps = 2
-        ) && approx_eq!(
-            f32,
-            rgba_u8_to_f32(first_a),
-            rgba_u8_to_f32(second_a),
-            ulps = 2
-        ) {
+    for ((first_image_pixel, second_image_pixel), difference_pixel) in first_image
+        .pixels()
+        .zip(second_image.pixels())
+        .zip(difference_texture.pixels_mut())
+    {
+        let (first_r, first_g, first_b, _) = first_image_pixel.channels4();
+        let (second_r, second_g, second_b, _) = second_image_pixel.channels4();
+
+        let red_difference = channel_difference(first_r, second_r);
+        let green_difference = channel_difference(first_g, second_g);
+        let blue_difference = channel_difference(first_b, second_b);
+
+        *difference_pixel = Rgba([red_difference, green_difference, blue_difference, 255]);
+
+        if any_difference(red_difference, green_difference, blue_difference) {
             matching_pixel_count += 1;
         }
     }
@@ -82,6 +73,20 @@ fn main() -> VerboseResult<()> {
     Ok(())
 }
 
-fn rgba_u8_to_f32(value: u8) -> f32 {
-    value as f32 / 255.0
+fn channel_difference(first: u8, second: u8) -> u8 {
+    if second >= first {
+        first - second
+    } else {
+        second - first
+    }
+}
+
+fn any_difference(first: u8, second: u8, third: u8) -> bool {
+    for difference in [first, second, third].iter() {
+        if *difference != 0 {
+            return true;
+        }
+    }
+
+    false
 }

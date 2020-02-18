@@ -9,4 +9,3 @@ edition = "2018"
 [dependencies]
 utilities = { git = "https://github.com/hodasemi/Context" }
 image = "0.23"
-float-cmp = "0.6"
