@@ -23,10 +23,13 @@ fn main() -> VerboseResult<()> {
         Err(err) => create_error!(err.to_string()),
     };
 
-    let threshold: Option<f32> = match arguments.get(3) {
-        Some(value) => value.parse().ok(),
-        None => None,
-    };
+    let mut threshold = 0;
+
+    if let Some(value) = arguments.get(3) {
+        if let Ok(float) = value.parse::<f32>() {
+            threshold = (std::u8::MAX as f32 * float) as u8;
+        }
+    }
 
     // make sure both images have the same width and height
     assert_eq!(
@@ -58,7 +61,7 @@ fn main() -> VerboseResult<()> {
 
         *difference_pixel = Rgba([red_difference, green_difference, blue_difference, 255]);
 
-        if any_difference(red_difference, green_difference, blue_difference) {
+        if any_difference(red_difference, green_difference, blue_difference, threshold) {
             matching_pixel_count += 1;
         }
     }
@@ -70,20 +73,24 @@ fn main() -> VerboseResult<()> {
         matching_pixel_count as f32 / total_pixel_count as f32
     );
 
+    if let Err(err) = difference_texture.save("difference_texture.png") {
+        println!("{:?}", err);
+    }
+
     Ok(())
 }
 
 fn channel_difference(first: u8, second: u8) -> u8 {
     if second >= first {
-        first - second
-    } else {
         second - first
+    } else {
+        first - second
     }
 }
 
-fn any_difference(first: u8, second: u8, third: u8) -> bool {
+fn any_difference(first: u8, second: u8, third: u8, threshold: u8) -> bool {
     for difference in [first, second, third].iter() {
-        if *difference != 0 {
+        if *difference <= threshold {
             return true;
         }
     }
