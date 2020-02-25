@@ -55,13 +55,13 @@ fn main() -> VerboseResult<()> {
         let (first_r, first_g, first_b, _) = first_image_pixel.channels4();
         let (second_r, second_g, second_b, _) = second_image_pixel.channels4();
 
-        let red_difference = channel_difference(first_r, second_r);
-        let green_difference = channel_difference(first_g, second_g);
-        let blue_difference = channel_difference(first_b, second_b);
+        let red_difference = channel_difference(first_r, second_r, threshold);
+        let green_difference = channel_difference(first_g, second_g, threshold);
+        let blue_difference = channel_difference(first_b, second_b, threshold);
 
         *difference_pixel = Rgba([red_difference, green_difference, blue_difference, 255]);
 
-        if any_difference(red_difference, green_difference, blue_difference, threshold) {
+        if !any_difference(red_difference, green_difference, blue_difference) {
             matching_pixel_count += 1;
         }
     }
@@ -80,17 +80,23 @@ fn main() -> VerboseResult<()> {
     Ok(())
 }
 
-fn channel_difference(first: u8, second: u8) -> u8 {
-    if second >= first {
+fn channel_difference(first: u8, second: u8, threshold: u8) -> u8 {
+    let difference = if second >= first {
         second - first
     } else {
         first - second
+    };
+
+    if difference <= threshold {
+        0
+    } else {
+        difference
     }
 }
 
-fn any_difference(first: u8, second: u8, third: u8, threshold: u8) -> bool {
+fn any_difference(first: u8, second: u8, third: u8) -> bool {
     for difference in [first, second, third].iter() {
-        if *difference <= threshold {
+        if *difference != 0 {
             return true;
         }
     }
