@@ -9,8 +9,6 @@ fn main() -> VerboseResult<()> {
     // first arguments is executable path
     let arguments: Vec<String> = env::args().collect();
 
-    println!("arguments: {:?}", arguments);
-
     // load first image
     let first_image = match image::open(arguments.get(1).ok_or("missing path to first image")?) {
         Ok(image) => image.into_rgba(),
@@ -23,10 +21,12 @@ fn main() -> VerboseResult<()> {
         Err(err) => create_error!(err.to_string()),
     };
 
+    let mut original_value = 0.0;
     let mut threshold = 0;
 
     if let Some(value) = arguments.get(3) {
         if let Ok(float) = value.parse::<f32>() {
+            original_value = float;
             threshold = (std::u8::MAX as f32 * float) as u8;
         }
     }
@@ -44,6 +44,7 @@ fn main() -> VerboseResult<()> {
 
     let total_pixel_count = width * height;
     let mut matching_pixel_count = 0;
+    let mut perceptual_difference = 0.0;
 
     let mut difference_texture = ImageBuffer::from_pixel(width, height, Rgba([0, 0, 0, 0]));
 
@@ -61,6 +62,10 @@ fn main() -> VerboseResult<()> {
 
         *difference_pixel = Rgba([red_difference, green_difference, blue_difference, 255]);
 
+        perceptual_difference += normalize_color(color_difference(
+            first_r, first_g, first_b, second_r, second_g, second_b, threshold,
+        ));
+
         if !any_difference(red_difference, green_difference, blue_difference) {
             matching_pixel_count += 1;
         }
@@ -72,12 +77,51 @@ fn main() -> VerboseResult<()> {
         total_pixel_count,
         matching_pixel_count as f32 / total_pixel_count as f32
     );
+    println!(
+        "average perceptual difference: {}",
+        perceptual_difference / total_pixel_count as f32
+    );
 
-    if let Err(err) = difference_texture.save("difference_texture.png") {
+    if let Err(err) =
+        difference_texture.save(&format!("difference_texture_{:.2?}.png", original_value))
+    {
         println!("{:?}", err);
     }
 
     Ok(())
+}
+
+/// https://en.wikipedia.org/wiki/Color_difference#Euclidean
+fn color_difference(
+    first_r: u8,
+    first_g: u8,
+    first_b: u8,
+    second_r: u8,
+    second_g: u8,
+    second_b: u8,
+    threshold: u8,
+) -> u8 {
+    let r_mean = first_r as f32 + second_r as f32 / 2.0;
+
+    let delta_r = first_r as f32 - second_r as f32;
+    let delta_g = first_g as f32 - second_g as f32;
+    let delta_b = first_b as f32 - second_b as f32;
+
+    let diff = ((2.0 + (r_mean / 256.0)) * (delta_r * delta_r)
+        + 4.0 * (delta_g * delta_g)
+        + (2.0 + ((255.0 - r_mean) / 256.0)) * (delta_b * delta_b))
+        .sqrt()
+        .abs() as u8;
+
+    if diff > threshold {
+        diff
+    } else {
+        0
+    }
+}
+
+fn normalize_color(c: u8) -> f32 {
+    c as f32 / 255.0
 }
 
 fn channel_difference(first: u8, second: u8, threshold: u8) -> u8 {
