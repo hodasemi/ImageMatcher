@@ -44,7 +44,7 @@ fn main() -> VerboseResult<()> {
 
     let total_pixel_count = width * height;
     let mut matching_pixel_count = 0;
-    let mut perceptual_difference = 0.0;
+    let mut total_perceptual_difference = 0.0;
 
     let mut difference_texture = ImageBuffer::from_pixel(width, height, Rgba([0, 0, 0, 0]));
 
@@ -62,9 +62,11 @@ fn main() -> VerboseResult<()> {
 
         *difference_pixel = Rgba([red_difference, green_difference, blue_difference, 255]);
 
-        perceptual_difference += normalize_color(color_difference(
-            first_r, first_g, first_b, second_r, second_g, second_b, threshold,
+        let perceptual_difference = normalize_color(color_difference(
+            first_r, first_g, first_b, second_r, second_g, second_b,
         ));
+
+        total_perceptual_difference += perceptual_difference;
 
         if !any_difference(red_difference, green_difference, blue_difference) {
             matching_pixel_count += 1;
@@ -79,7 +81,7 @@ fn main() -> VerboseResult<()> {
     );
     println!(
         "average perceptual difference: {}",
-        perceptual_difference / total_pixel_count as f32
+        total_perceptual_difference / total_pixel_count as f32
     );
 
     if let Err(err) =
@@ -91,7 +93,7 @@ fn main() -> VerboseResult<()> {
     Ok(())
 }
 
-/// https://en.wikipedia.org/wiki/Color_difference#Euclidean
+/// https://www.compuphase.com/cmetric.htm
 fn color_difference(
     first_r: u8,
     first_g: u8,
@@ -99,8 +101,7 @@ fn color_difference(
     second_r: u8,
     second_g: u8,
     second_b: u8,
-    threshold: u8,
-) -> u8 {
+) -> f32 {
     let r_mean = first_r as f32 + second_r as f32 / 2.0;
 
     let delta_r = first_r as f32 - second_r as f32;
@@ -111,17 +112,17 @@ fn color_difference(
         + 4.0 * (delta_g * delta_g)
         + (2.0 + ((255.0 - r_mean) / 256.0)) * (delta_b * delta_b))
         .sqrt()
-        .abs() as u8;
+        .abs();
 
-    if diff > threshold {
+    if diff > 2.3 {
         diff
     } else {
-        0
+        0.0
     }
 }
 
-fn normalize_color(c: u8) -> f32 {
-    c as f32 / 255.0
+fn normalize_color(c: impl Into<f32>) -> f32 {
+    c.into() / 255.0
 }
 
 fn channel_difference(first: u8, second: u8, threshold: u8) -> u8 {

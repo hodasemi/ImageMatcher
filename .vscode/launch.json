@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Launch",
+            "cargo": {
+                "args": [
+                    "build"
+                ],
+                "filter": {
+                    "name": "ImageMatcher",
+                    "kind": "bin"
+                }
+            },
+            "linux": {
+                "env": {
+                    "RUST_BACKTRACE": "1"
+                }
+            },
+            "args": [
+                "/home/hodasemi/Dropbox/bachelor/writing/evaluation/spread/0_deg/55_0_90_blender.png",
+                "/home/hodasemi/Dropbox/bachelor/writing/evaluation/spread/0_deg/90_at_90.png"
+            ],
+            "cwd": "${workspaceRoot}"
+        }
+    ]
+}
